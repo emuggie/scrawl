@@ -13,3 +13,4 @@ Goal is to run service with  no installation, no enviroments, no configuration.
 ## How to use
 Just run and do what you like.  
 No security, no access controls, no logs, no storages, no histories.
+-h for arguments.

@@ -1,0 +1,55 @@
+<template>
+    <div>
+        <div>{{a}}</div>
+        <div>{{b}}</div>
+        <div>{{c}}</div>
+        <div>{{d}}</div>
+        <input type="text" value="a">
+        <button onclick="test()">
+    </div>
+</template>
+    
+<script>
+    // onload = ()=>{
+    //     // alert('ets')
+    // }
+    console.log(window.parent.onload)
+    var test1 =1
+    // console.log("module", test1, document.currentScript);
+    Object.defineProperty(window,'exports',{
+        set : exports => {
+            console.log(exports, document.currentScript);
+        },
+        get : ()=>{
+            return "Loaded";
+        }
+    });
+</script>
+    
+<script type="module">
+    console.log(1)
+    //preload configs.
+    var test = "Test;"
+    var scripts = document.getElementsByTagName( 'script' );
+    var me = scripts[ scripts.length - 1 ];
+    let i=0;
+    // while(true){
+
+    // };
+    console.log(2)
+    // console.log("module1", document.currentScript,me);
+    window.exports = {test}
+</script>
+
+<script type="module">
+    console.log(3)
+    var test = "Test;"
+    var scripts = document.getElementsByTagName( 'script' );
+    var me = scripts[ scripts.length - 1 ];
+    // console.log("module2",me);
+    console.log(4)
+    window.exports = {test}
+    console.log(test1)
+</script>
+    
+    

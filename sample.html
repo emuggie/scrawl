@@ -1,0 +1,13 @@
+<html>
+<head>
+
+</head>
+<body>
+    <iframe id="comp1" src="component.html"  hidden lazy></iframe>
+    <script type="application/javascript">
+        window.onload = () => {
+            console.log("main", document.querySelector("#comp1").hasAttribute('lazy'))    
+        }
+    </script>
+</body>
+</html>

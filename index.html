@@ -15,7 +15,7 @@
         }
 
         .memo textarea {
-            width: 90%;
+            width: 100%;
             height : 400px;
             resize: none;
         }
@@ -30,24 +30,63 @@
 <body>
 
 <div id="app">
-    <div class="pure-g" style="width : 90%">
+    <div style="background-color: bisque; width:100%; position:relative">
+        <h3>#Scrawl</h3>
+    </div>
+    
+    <div class="pure-g" style="width : 60%; float:left">
         <div is="memo-tmpl" v-bind:memo="memo" v-for="memo in memos"></div>
-        <div class="pure-u-1-4 memo" >
+        <div class="pure-u-1-2 memo" >
             <div style="width:100%;height: 100%; display: flex; background-color: rgb(190, 187, 187);align-items: center;justify-content: center">
-                <button v-on:click="add"><img src="plus.png"></button>
+                <button v-on:click="addMemo"><img src="plus.png"></button>
             </div>
         </div>
     </div>
+
+    <div style="width:40%; float:left">
+            <table class="pure-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>At</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr is="file-tmpl" v-bind:file="file" v-for="file in files"></tr>
+                    <tr>
+                        <td>0</td>
+                        <td><input type="file" ref="file" v-on:change="onSelectFile"></button></td>
+                        <td>{{tmpFile.size}}</td>
+                        <td></td>
+                        <td><button class="pure-button" v-on:click="addFile">Add</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 </div>
 
+<template id="file-template">
+    <tr>
+        <td>{{file.id}}</td>
+        <td><a v-bind:href="'file?id='+file.id">{{file.name}}</a></td>
+        <td>{{file.size}}</td>
+        <td>{{file.at}}</td>
+        <td><button class="pure-button" v-on:click="onDelete">Delete</button></td>
+    </tr>
+</template>
+
 <template id="memo-template">
-    <div class="pure-u-1-4 memo">
+    <div class="pure-u-1-2 memo">
         <img src="x.png" class="icon-btn" v-on:click="onRemove" style="position:absolute;right:0px;top:0px;"/>
-        <span>{{ memo.id }}</span>
+        <span>ID : {{ memo.id }}</span>
         <div>
             <textarea v-model="memo.text"></textarea>
         </div>
         <div>
+            <button class="pure-button" v-on:click="onUpload(memo)">Upload</button>
             <button class="pure-button" v-on:click="onPaste">Paste</button>
             <button class="pure-button" v-on:click="onCopy">Copy</button>
         </div>
@@ -57,6 +96,42 @@
 <script>
     const UPDATE_DELAY_MS = 3000;
     var app;
+    const files = [];    
+
+    function addFile(){
+        console.log('addFile');
+        if(!this.tmpFile.size){
+            alert("Please select file first.");
+            return;
+        }
+        var formData = new FormData();
+        formData.append('file',this.tmpFile);
+        fetch('file',{
+            method : "POST",
+            body : formData
+        }).then(response=>{
+            return response.json();
+        }).then(result=>{
+            this.files.push({id:result.id,name:this.tmpFile.name,size: this.tmpFile.size});
+            this.tmpFile = {size:0};
+            this.$refs.file.value = '';
+        }).catch(error=>{
+            console.error(error)
+            alert("fail uploading file", error)
+        });
+        
+        
+    }
+
+    function removeFile(){
+        files.splice(files.indexOf(this.file),1);
+    }
+
+    function onSelectFile(){
+        this.tmpFile = this.$refs.file.files[0];
+        console.log(this.tmpFile);
+    }
+
     const memos = [];    
 
     // 
@@ -101,8 +176,7 @@
                 console.log(memo)
                 reserveUpdate(memo);
             });
-        })
-        
+        });
     }
 
     function putClipboardText(){
@@ -156,16 +230,28 @@
                 onPaste : getClipboardText,
                 onCopy : putClipboardText,
                 onRemove : removeMemo,
+                onUpload : reserveUpdate
+            }
+        });
+        Vue.component('file-tmpl',{
+            template: '#file-template',
+            props : ['file'],
+            methods : {
+                onDelete : removeFile
             }
         });
 
         app = new Vue({
             el : "#app",
             data : {
-                memos : memos
+                memos : memos,
+                files : files,
+                tmpFile : {size : undefined}
             },
             methods : {
-                add : addMemo
+                addMemo : addMemo,
+                addFile : addFile,
+                onSelectFile : onSelectFile
             }
         });
 
@@ -176,7 +262,16 @@
             console.log(data);
             memos.push(...data);
         }).catch(error=>{
-            alert("Fail fetching data from server" , error);
+            alert("Fail fetching data from server : memo : " , error);
+        })
+
+        fetch('files').then(response=>{
+            return response.json();
+        }).then(data=>{
+            console.log(data);
+            files.push(...data);
+        }).catch(error=>{
+            alert("Fail fetching data from server : file : " , error);
         })
     }
 </script>
