@@ -88,6 +88,7 @@ func onPostFile(res http.ResponseWriter, req *http.Request) {
 	file.Id = getIdx()
 	file.content = f
 	file.Size = int(f.(Sizer).Size())
+	file.At = time.Now()
 	files = append(files, file)
 	resp := struct {
 		Status  string `json:"status"`

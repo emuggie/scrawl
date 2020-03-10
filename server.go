@@ -4,12 +4,16 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/emuggie/scrawl/route"
 )
+
+/*static content path*/
+const RESOURCE_PATH = "static"
 
 func main() {
 	var mux = http.NewServeMux()
@@ -26,14 +30,15 @@ func main() {
 		if filePath == "" {
 			filePath = "index.html"
 		}
-		contents, err := ioutil.ReadFile(filePath)
+		contents, err := ioutil.ReadFile(RESOURCE_PATH + "/" + filePath)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			res.Write([]byte("404 - File Not Found"))
 			return
 		}
+		ns := strings.Split(filePath, ".")
 		res.Header().Set("Content-Length", strconv.Itoa(len(contents)))
-		res.Header().Set("Content-Type", http.DetectContentType(contents))
+		res.Header().Set("Content-Type", mime.TypeByExtension(ns[len(ns)-1]))
 		res.Write(contents)
 		return
 

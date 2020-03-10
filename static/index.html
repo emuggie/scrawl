@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.1/build/pure-min.css" integrity="sha384-oAOxQR6DkCoMliIh8yFnu25d7Eq/PHS21PClpwjOTeU2jRSq11vu66rf90/cZr47" crossorigin="anonymous"> -->
+    <link rel="stylesheet" href="css/pure-release-1.0.1/pure.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/main.css" crossorigin="anonymous">
+    <script src="js/vue.js" type="text/javascript"></script>
+    <script src="js/main.js" type="text/javascript"></script>
+</head>
+<body>
+
+<div id="app">
+    <div style="background-color: bisque; width:100%; position:relative">
+        <h3>#Scrawl</h3>
+    </div>
+    
+    <div class="pure-g memo-layout">
+        <div is="memo-tmpl" v-bind:memo="memo" v-for="memo in memos"></div>
+        <div class="pure-u-1-2 memo" >
+            <div class="new" >
+                <button v-on:click="addMemo"><img src="image/plus.png"></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="file-layout">
+            <table class="pure-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr is="file-tmpl" v-bind:file="file" v-for="file in files"></tr>
+                    <tr>
+                        <td><button class="pure-button" v-on:click="addFile">Add</button></td>
+                        <td>0</td>
+                        <td><input type="file" ref="file" v-on:change="onSelectFile"></button></td>
+                        <td>{{tmpFile.size}}</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+</div>
+
+<template id="file-template">
+    <tr>
+        <td><button class="pure-button" v-on:click="onDelete">Delete</button></td>
+        <td>{{file.id}}</td>
+        <td><a v-bind:href="'file?id='+file.id">{{file.name}}</a></td>
+        <td>{{file.size}}</td>
+        <td>{{file.at}}</td>
+    </tr>
+</template>
+
+<template id="memo-template">
+    <div class="pure-u-1-2 memo">
+        <img src="image/x.png" class="icon-btn close-btn" v-on:click="onRemove">
+        <span>ID : {{ memo.id }}</span>
+        <div>
+            <textarea v-model="memo.text"></textarea>
+        </div>
+        <div>
+            <button class="pure-button" v-on:click="onUpload(memo)">Upload</button>
+            <button class="pure-button" v-on:click="onPaste">Paste</button>
+            <button class="pure-button" v-on:click="onCopy">Copy</button>
+        </div>
+    </div>
+</template>
+
+<script>
+    const UPDATE_DELAY_MS = 3000;
+    var app;
+    const files = [];    
+
+    function addFile(){
+        console.log('addFile');
+        if(!this.tmpFile.size){
+            alert("Please select file first.");
+            return;
+        }
+        var formData = new FormData();
+        formData.append('file',this.tmpFile);
+        fetch('file',{
+            method : "POST",
+            body : formData
+        }).then(response=>{
+            return response.json();
+        }).then(result=>{
+            this.files.push({id:result.id,name:this.tmpFile.name,size: this.tmpFile.size});
+            this.tmpFile = {size:0};
+            this.$refs.file.value = '';
+        }).catch(error=>{
+            console.error(error)
+            alert("fail uploading file", error)
+        });
+    }
+
+    function removeFile(){
+        fetch('file',{
+            method : "DELETE",
+            body : JSON.stringify({
+                id : this.file.id
+            })
+        }).then(response=>{
+            return response.json();
+        }).then(result=>{
+            files.splice(files.indexOf(this.file),1);
+        }).catch(error=>{
+            console.error(error)
+            alert("fail uploading file", error)
+        });
+    }
+
+    function onSelectFile(){
+        this.tmpFile = this.$refs.file.files[0];
+    }
+
+    const memos = [];    
+
+    // 
+    function addMemo(){
+        this.memos.push({id:0, text : ""});
+    }
+    
+    // clear memo
+    function removeMemo(){
+        let memoId = this.memo.id
+        console.log(memoId)
+        memos.splice(memos.indexOf(this.memo),1);
+        fetch('memo',{
+            method : "DELETE",
+            mode : "cors",
+            headers : {
+                'Content-Type':'application/json',
+            },
+            body : JSON.stringify({
+                id : memoId
+            })
+        }).then(response=>{
+            return response.json();
+        }).then(result=>{
+            console.log(result);
+        }).catch(error=>{
+            console.log("fail updating clipboard", error)
+        });
+    }
+
+    function getClipboardText(){
+        let memo = this.memo
+        navigator.permissions.query({name: "clipboard-read"})
+        .then(result=>{
+            if (result.state != "granted" && result.state != "prompt") {
+                alert("Clipboard access has denied.")
+                return;
+            }
+            navigator.clipboard.readText()
+            .then(text => {
+                memo.text = text;
+                console.log(memo)
+                reserveUpdate(memo);
+            });
+        });
+    }
+
+    function putClipboardText(){
+        const memo = this.memo;
+        navigator.permissions.query({name: "clipboard-write"}).then(result => {
+            if (result.state != "granted" && result.state != "prompt") {
+                alert("Clipboard access has denied.")
+                return;
+            }
+            /* write to the clipboard now */
+            navigator.clipboard.writeText(this.memo.text).then(() => {
+                
+            }, ()=>{
+                alert("Failed copying to Clipboard.")
+            });
+        });
+    }
+
+    function reserveUpdate(memo){
+        console.log("reserveUpdate")
+        let timeoutId = memo.reserveId = setTimeout((memo)=>{
+            if(timeoutId !== memo.reserveId){
+                return;
+            }
+            // commence update
+            console.log(memo)
+            fetch('memo',{
+                method : "POST",
+                headers : {
+                    'Content-Type':'application/json',
+                },
+                body : JSON.stringify({
+                    id : memo.id,
+                    text : memo.text
+                })
+            }).then(response=>{
+                return response.json();
+            }).then(result=>{
+                memo.id = result.id;
+            }).catch(error=>{
+                alert("fail updating clipboard", error)
+            });
+        }, UPDATE_DELAY_MS, memo);   
+    }
+    
+    window.onload = ()=>{
+        Vue.component('memo-tmpl',{
+            template: '#memo-template',
+            props : ['memo'],
+            methods : {
+                onPaste : getClipboardText,
+                onCopy : putClipboardText,
+                onRemove : removeMemo,
+                onUpload : reserveUpdate
+            }
+        });
+
+        Vue.component('file-tmpl',{
+            template: '#file-template',
+            props : ['file'],
+            methods : {
+                onDelete : removeFile
+            }
+        });
+
+        app = new Vue({
+            el : "#app",
+            data : {
+                memos : memos,
+                files : files,
+                tmpFile : {size : undefined}
+            },
+            methods : {
+                addMemo : addMemo,
+                addFile : addFile,
+                onSelectFile : onSelectFile
+            }
+        });
+
+        //Fetch from server.
+        fetch('memos').then(response=>{
+            return response.json();
+        }).then(data=>{
+            console.log(data);
+            memos.push(...data);
+        }).catch(error=>{
+            alert("Fail fetching data from server : memo : " , error);
+        })
+
+        fetch('files').then(response=>{
+            return response.json();
+        }).then(data=>{
+            console.log(data);
+            files.push(...data);
+            files.forEach(each=>{
+                each.at = new Date(each.at);
+            });
+        }).catch(error=>{
+            alert("Fail fetching data from server : file : " , error);
+        })
+    }
+</script>
+</body>
+</html>
